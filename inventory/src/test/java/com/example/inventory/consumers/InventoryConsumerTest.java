@@ -20,10 +20,10 @@ class InventoryConsumerTest {
     private InventoryConsumer inventoryConsumer;
 
     @Test
-    void consume_delegatesToService() {
-        InventoryRequest msg = new InventoryRequest("SKU-10", 4);
+    void consumeDelegatesToService() {
+        InventoryRequest msg = new InventoryRequest(200L, "SKU-10", 4);
         inventoryConsumer.consume(msg);
-        verify(inventoryService).reserve("SKU-10", 4);
+        verify(inventoryService).reserve(200L, "SKU-10", 4);
     }
 }
 

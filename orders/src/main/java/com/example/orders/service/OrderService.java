@@ -24,8 +24,8 @@ public class OrderService {
         Order order = new Order(request.sku(), request.orderNumber(), "PENDING", request.totalAmount(), request.orderQuantity(), request.palpayOrder());
         Order savedOrder = orderRepository.save(order);
         
-        // Produce Kafka message
-        InventoryRequest inventoryRequest = new InventoryRequest(order.getSku(), order.getOrderQuantity());
+        // Produce Kafka message (include orderId so inventory can correlate/propagate it)
+        InventoryRequest inventoryRequest = new InventoryRequest(savedOrder.getId(), order.getSku(), order.getOrderQuantity());
         kafkaTemplate.send(ORDERS_TOPIC, savedOrder.getOrderNumber(), inventoryRequest);
         
         return mapToResponse(savedOrder);

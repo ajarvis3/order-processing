@@ -1,5 +1,6 @@
 package com.example.inventory.service;
 
+import com.example.inventory.dto.ReservationEvent;
 import com.example.inventory.model.InventoryItem;
 import com.example.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class InventoryServiceTest {
     private InventoryRepository inventoryRepository;
 
     @Mock
-    private KafkaTemplate<String, InventoryService.ReservationEvent> kafkaTemplate;
+    private KafkaTemplate<String, ReservationEvent> kafkaTemplate;
 
     @InjectMocks
     private InventoryService inventoryService;
@@ -38,7 +39,7 @@ class InventoryServiceTest {
 
         when(inventoryRepository.findBySku(eq("SKU-1"))).thenReturn(Optional.of(item));
 
-        inventoryService.reserve("SKU-1", 3);
+        inventoryService.reserve(100L, "SKU-1", 3);
 
         // verify save called with decremented quantity
         ArgumentCaptor<InventoryItem> saveCaptor = ArgumentCaptor.forClass(InventoryItem.class);
@@ -46,15 +47,18 @@ class InventoryServiceTest {
         assertEquals(7, saveCaptor.getValue().getQuantityAvailable());
 
         // verify kafka published with reserved = true
-        ArgumentCaptor<InventoryService.ReservationEvent> eventCaptor = ArgumentCaptor.forClass(InventoryService.ReservationEvent.class);
+        ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
         verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("SKU-1"), eventCaptor.capture());
 
         Object evt = eventCaptor.getValue();
         try {
             Class<?> c = evt.getClass();
+            // orderId is now the first field
+            Object orderId = c.getField("orderId").get(evt);
             Object reserved = c.getField("reserved").get(evt);
             Object qty = c.getField("quantityAvailable").get(evt);
             Object sku = c.getField("sku").get(evt);
+            assertNull(orderId);
             assertEquals("SKU-1", sku);
             assertEquals(7, ((Number) qty).intValue());
             assertEquals(true, reserved);
@@ -72,19 +76,21 @@ class InventoryServiceTest {
 
         when(inventoryRepository.findBySku(eq("SKU-2"))).thenReturn(Optional.of(item));
 
-        inventoryService.reserve("SKU-2", 5);
+        inventoryService.reserve(101L, "SKU-2", 5);
 
         // should not save because not enough quantity
         verify(inventoryRepository, never()).save(any(InventoryItem.class));
 
-        ArgumentCaptor<InventoryService.ReservationEvent> eventCaptor = ArgumentCaptor.forClass(InventoryService.ReservationEvent.class);
+        ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
         verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("SKU-2"), eventCaptor.capture());
 
         Object evt = eventCaptor.getValue();
         try {
             Class<?> c = evt.getClass();
+            Object orderId = c.getField("orderId").get(evt);
             Object reserved = c.getField("reserved").get(evt);
             Object qty = c.getField("quantityAvailable").get(evt);
+            assertNull(orderId);
             assertEquals("SKU-2", c.getField("sku").get(evt));
             assertEquals(1, ((Number) qty).intValue());
             assertEquals(false, reserved);
@@ -97,17 +103,18 @@ class InventoryServiceTest {
     void reserveWhenNotFoundPublishesZeroAndFalse() {
         when(inventoryRepository.findBySku(eq("MISSING"))).thenReturn(Optional.empty());
 
-        inventoryService.reserve("MISSING", 2);
+        inventoryService.reserve(102L, "MISSING", 2);
 
         // should not save
         verify(inventoryRepository, never()).save(any());
 
-        ArgumentCaptor<InventoryService.ReservationEvent> eventCaptor = ArgumentCaptor.forClass(InventoryService.ReservationEvent.class);
+        ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
         verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("MISSING"), eventCaptor.capture());
 
         Object evt = eventCaptor.getValue();
         try {
             Class<?> c = evt.getClass();
+            assertNull(c.getField("orderId").get(evt));
             assertEquals("MISSING", c.getField("sku").get(evt));
             assertEquals(0, ((Number) c.getField("quantityAvailable").get(evt)).intValue());
             assertEquals(false, c.getField("reserved").get(evt));

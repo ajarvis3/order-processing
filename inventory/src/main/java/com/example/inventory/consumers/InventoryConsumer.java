@@ -12,8 +12,8 @@ public class InventoryConsumer {
     @Autowired
     private InventoryService inventoryService;
 
-    @KafkaListener(topics = "orders", groupId = "order-group")
+    @KafkaListener(topics = "orders", groupId = "inventory-group")
     public void consume(InventoryRequest message) {
-        inventoryService.reserve(message.sku(), message.quantity()); // delegate to service
+        inventoryService.reserve(message.orderId(), message.sku(), message.quantity()); // delegate to service
     }
 }
