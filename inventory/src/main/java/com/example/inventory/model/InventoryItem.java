@@ -14,6 +14,14 @@ public class InventoryItem {
 
     private Integer quantityAvailable;
 
+    public InventoryItem() {
+    }
+
+    public InventoryItem(String sku, Integer quantityAvailable) {
+        this.sku = sku;
+        this.quantityAvailable = quantityAvailable;
+    }
+
     public Integer getQuantityAvailable() {
         return quantityAvailable;
     }

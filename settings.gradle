@@ -1,0 +1,3 @@
+rootProject.name = 'order-processing'
+include 'common-dto', 'inventory', 'orders', 'palpay', 'payments', 'shipping'
+

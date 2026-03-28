@@ -21,6 +21,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-kafka'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // Shared DTOs
+    implementation project(':common-dto')
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
@@ -31,4 +35,25 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+
+tasks.register('dockerBuild', Exec) {
+	description = 'Builds the Spring Boot jar and then builds a Docker image named palpay-service'
+	group = 'docker'
+
+	// Ensure the bootJar is created first so build/libs contains the executable jar
+	dependsOn tasks.named('bootJar')
+
+	// Run Docker build in the project directory (service root)
+	workingDir = file('.')
+	// Use the docker CLI; requires Docker to be installed and available on PATH
+	commandLine = ['docker', 'build', '-t', 'palpay-service', '.']
+}
+
+// Convenience alias that other tasks can depend on
+tasks.register('buildImage') {
+	dependsOn tasks.named('dockerBuild')
+	group = 'docker'
+	description = 'Alias for dockerBuild'
 }

@@ -1,11 +1,11 @@
 -- Initialize multiple logical databases and users for local development
 -- This script runs automatically when the official MySQL image initializes
 
-CREATE DATABASE IF NOT EXISTS `orders_db`;
-CREATE DATABASE IF NOT EXISTS `inventory_db`;
-CREATE DATABASE IF NOT EXISTS `payments_db`;
-CREATE DATABASE IF NOT EXISTS `shipping_db`;
-CREATE DATABASE IF NOT EXISTS `palpay_db`;
+CREATE DATABASE IF NOT EXISTS orders_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS inventory_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS payments_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS shipping_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS palpay_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- Orders user
 CREATE USER IF NOT EXISTS 'orders_user'@'%' IDENTIFIED BY 'orders_password';

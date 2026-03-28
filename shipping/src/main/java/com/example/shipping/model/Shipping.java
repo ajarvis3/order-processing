@@ -3,7 +3,7 @@ package com.example.shipping.model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "shipping")
 public class Shipping {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,7 +13,11 @@ public class Shipping {
 
     String status;
 
+    public Shipping() {
+    }
+
     public Shipping(Long orderId, String status) {
+        this.orderId = orderId;
         this.status = status;
     }
 

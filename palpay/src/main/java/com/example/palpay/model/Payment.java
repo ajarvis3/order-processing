@@ -12,6 +12,9 @@ public class Payment {
 
     private String status; // void or captured
 
+    public Payment() {
+    }
+
     public Payment(String authId, Long orderId, String status) {
         this.authId = authId;
         this.orderId = orderId;

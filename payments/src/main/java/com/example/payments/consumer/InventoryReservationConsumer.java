@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import com.example.payments.service.PaymentsService;
-import com.example.payments.dto.ReservationEvent;
+import com.example.inventory.dto.ReservationEvent;
 
 @Component
 public class InventoryReservationConsumer {

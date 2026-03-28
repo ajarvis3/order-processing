@@ -1,0 +1,185 @@
+{
+  "info": {
+    "name": "Order Flow",
+    "_postman_id": "order-flow-collection",
+    "description": "Create a Palpay order, confirm it, then create an order in the order-service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Palpay - Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"totalAmount\": {{amount}},\n  \"paymentMethodType\": \"{{paymentMethod}}\"\n}"
+        },
+        "url": {
+          "raw": "http://{{palpay_host}}:{{palpay_port}}/palpay/orders",
+          "protocol": "http",
+          "host": [
+            "{{palpay_host}}"
+          ],
+          "port": "{{palpay_port}}",
+          "path": [
+            "palpay",
+            "orders"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Parse response and store palpay order id as environment variable",
+              "try {",
+              "  var json = pm.response.json();",
+              "  pm.test('Status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+              "  if (json.orderId !== undefined && json.orderId !== null) {",
+              "    pm.environment.set('palpayOrderId', json.orderId);",
+              "    console.log('Set palpayOrderId =', json.orderId);",
+              "  } else {",
+              "    pm.test('Response has orderId', function () { pm.expect(json.orderId).to.not.be.undefined; });",
+              "  }",
+              "} catch (e) {",
+              "  console.error('Failed to parse response JSON:', e);",
+              "  throw e;",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Palpay - Confirm Order",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://{{palpay_host}}:{{palpay_port}}/palpay/orders/{{palpayOrderId}}/confirm",
+          "protocol": "http",
+          "host": [
+            "{{palpay_host}}"
+          ],
+          "port": "{{palpay_port}}",
+          "path": [
+            "palpay",
+            "orders",
+            "{{palpayOrderId}}",
+            "confirm"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+              "// Optionally capture response data or mark confirmation",
+              "try {",
+              "  var json = pm.response.json();",
+              "  pm.environment.set('palpayConfirmResponse', JSON.stringify(json));",
+              "} catch (e) {",
+              "  // response might be empty; that's okay",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders - Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"orderNumber\": \"{{orderNumber}}\",\n  \"totalAmount\": {{amount}},\n  \"orderQuantity\": {{quantity}},\n  \"palpayOrder\": {{palpayOrderId}}\n}"
+        },
+        "url": {
+          "raw": "http://{{orders_host}}:{{orders_port}}/orders",
+          "protocol": "http",
+          "host": [
+            "{{orders_host}}"
+          ],
+          "port": "{{orders_port}}",
+          "path": [
+            "orders"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+              "try {",
+              "  var json = pm.response.json();",
+              "  pm.environment.set('lastOrderResponse', JSON.stringify(json));",
+              "  console.log('Order created:', json);",
+              "} catch (e) {",
+              "  console.log('No JSON body returned');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "palpay_host",
+      "value": "localhost"
+    },
+    {
+      "key": "palpay_port",
+      "value": "8085"
+    },
+    {
+      "key": "orders_host",
+      "value": "localhost"
+    },
+    {
+      "key": "orders_port",
+      "value": "8081"
+    },
+    {
+      "key": "amount",
+      "value": "100.0"
+    },
+    {
+      "key": "paymentMethod",
+      "value": "palpay"
+    },
+    {
+      "key": "sku",
+      "value": "SKU-001"
+    },
+    {
+      "key": "orderNumber",
+      "value": "ORD-{{timestamp}}"
+    },
+    {
+      "key": "quantity",
+      "value": "1"
+    }
+  ]
+}
+

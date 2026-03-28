@@ -1,6 +1,6 @@
 package com.example.payments.consumer;
 
-import com.example.payments.dto.ReservationEvent;
+import com.example.inventory.dto.ReservationEvent;
 import com.example.payments.service.PaymentsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

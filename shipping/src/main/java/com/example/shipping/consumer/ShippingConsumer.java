@@ -20,7 +20,7 @@ public class ShippingConsumer {
         this.shippingService = shippingService;
     }
 
-    @KafkaListener(topics = "shipping-requests", groupId = "shipping-group")
+    @KafkaListener(topics = "ready-for-shipping", groupId = "shipping-group")
     public void consume(Long orderId) {
         log.info("Received shipping request: {}", orderId);
         shippingService.processShippingRequest(orderId);

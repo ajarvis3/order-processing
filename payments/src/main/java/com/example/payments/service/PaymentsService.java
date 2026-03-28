@@ -20,11 +20,11 @@ public class PaymentsService {
 	private static final Logger log = LoggerFactory.getLogger(PaymentsService.class);
 
 	// Base URL for the Palpay service; defaults to localhost:8080 if not configured
-	@Value("${palpay.base-url:http://localhost:8080}")
+	@Value("${palpay.base-url:http://palpay-service:8080}")
 	private String palpayBaseUrl;
 
 	// Base URL for the Orders service; defaults to localhost:8081 if not configured
-	@Value("${orders.base-url:http://localhost:8081}")
+	@Value("${orders.base-url:http://order-service:8080}")
 	private String ordersBaseUrl;
 
 	// Simple RestTemplate for outgoing HTTP calls. For production consider injecting a
@@ -141,6 +141,7 @@ public class PaymentsService {
 
 	private void publishPaymentsResultForShipping(Long orderId) {
 		try {
+			log.info("Publishing payments for orderId={}", orderId);
 			kafkaTemplate.send(KAFKA_TOPIC, orderId);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to publish payments completion result to Kafka", e);

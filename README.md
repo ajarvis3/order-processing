@@ -12,6 +12,8 @@ The services are as follows:
 - palpay
 - shipping (not started)
 
-The docker compose will bring up these services as well as Kafka and a SQL database. I intend to add keycloak in the future as well.
+The docker compose will bring up these services as well as Kafka and a SQL database.
 
 For the sake of clarity on the use of Copilot, it has done most of the work in test making and helped with additional coding in the service classes, but mostly as refactoring/large code completion.
+
+Better error handling for Kafka will be needed as well as other areas.

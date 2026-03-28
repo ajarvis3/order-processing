@@ -1,10 +1,12 @@
 package com.example.orders.service;
 
-import com.example.orders.dto.InventoryRequest;
+import com.example.inventory.dto.InventoryRequest;
 import com.example.orders.dto.OrderRequest;
 import com.example.orders.dto.OrderResponse;
 import com.example.orders.model.Order;
 import com.example.orders.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import com.example.orders.dto.OrderAuthorizeResponse;
 
 @Service
 public class OrderService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
     
     @Autowired
     private OrderRepository orderRepository;
@@ -25,7 +29,7 @@ public class OrderService {
     
     private static final String ORDERS_TOPIC = "orders";
     
-    @Value("${palpay.base-url:http://localhost:8085}")
+    @Value("${palpay.base-url:http://palpay-service:8080}")
     private String palpayBaseUrl;
 
     private RestTemplate restTemplate = new RestTemplate();
@@ -38,15 +42,14 @@ public class OrderService {
         try {
             // 2) Authorize the palpay payment to receive an authId
             OrderAuthorizeResponse authResp = restTemplate.postForObject(palpayBaseUrl + "/palpay/orders/{id}/authorize", null, OrderAuthorizeResponse.class, request.palpayOrder());
+            logger.info("Order Authorize Response: {}", authResp);
             if (authResp != null && authResp.authorizationId() != null) {
                 savedOrder.setAuthId(authResp.authorizationId());
                 savedOrder.setStatus("AUTHORIZED");
                 orderRepository.save(savedOrder);
             }
         } catch (RestClientException e) {
-            // Log and continue. In production you may want to compensate or fail the request.
-            // For now, leave order in PENDING and do not set palpay fields.
-            // Consider throwing a custom exception to roll back the transaction if desired.
+            // This should be corrected along with the previous to fail if the payment was not authorized
         }
 
         // Produce Kafka message (include orderId so inventory can correlate/propagate it)

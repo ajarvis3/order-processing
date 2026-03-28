@@ -20,9 +20,14 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	runtimeOnly 'com.mysql:mysql-connector-j'
 
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// Shared DTOs (project dependency)
+	implementation project(':common-dto')
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -33,4 +38,24 @@ tasks.named('test') {
 
 test {
     systemProperty "spring.profiles.active", "test"
+}
+
+tasks.register('dockerBuild', Exec) {
+	description = 'Builds the Spring Boot jar and then builds a Docker image named order-service'
+	group = 'docker'
+
+	// Ensure the bootJar is created first so build/libs contains the executable jar
+	dependsOn tasks.named('bootJar')
+
+	// Run Docker build in the project directory (service root)
+	workingDir = file('.')
+	// Use the docker CLI; requires Docker to be installed and available on PATH
+	commandLine = ['docker', 'build', '-t', 'order-service', '.']
+}
+
+// Convenience alias that other tasks can depend on
+tasks.register('buildImage') {
+	dependsOn tasks.named('dockerBuild')
+	group = 'docker'
+	description = 'Alias for dockerBuild'
 }

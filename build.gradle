@@ -1,0 +1,39 @@
+subprojects {
+    apply plugin: 'java'
+
+    group = 'com.example'
+    version = '0.0.1-SNAPSHOT'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+// Task to run dockerBuild in every subproject that defines it
+tasks.register('dockerBuildAll') {
+    group = 'docker'
+    description = 'Executes the dockerBuild task for all subprojects that provide it'
+
+    // Collect TaskProviders for each existing dockerBuild task in subprojects
+    def providers = []
+    subprojects.each { p ->
+        if (p.tasks.findByName('dockerBuild') != null) {
+            providers << p.tasks.named('dockerBuild')
+        }
+    }
+
+    if (!providers.isEmpty()) {
+        dependsOn providers
+    } else {
+        doLast {
+            logger.lifecycle('No subprojects provide a dockerBuild task.')
+        }
+    }
+}
+
