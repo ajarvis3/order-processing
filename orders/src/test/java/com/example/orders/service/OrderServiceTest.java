@@ -1,6 +1,6 @@
 package com.example.orders.service;
 
-import com.example.orders.dto.InventoryRequest;
+import com.example.inventory.dto.InventoryRequest;
 import com.example.orders.dto.OrderAuthorizeResponse;
 import com.example.orders.dto.OrderRequest;
 import com.example.orders.dto.OrderResponse;
