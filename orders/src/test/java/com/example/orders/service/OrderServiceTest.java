@@ -5,6 +5,7 @@ import com.example.orders.dto.OrderRequest;
 import com.example.orders.dto.OrderResponse;
 import com.example.orders.model.Order;
 import com.example.orders.repository.OrderRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -12,9 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.example.orders.exception.ResourceNotFoundException;
 
 import java.util.Optional;
-import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +35,11 @@ class OrderServiceTest {
 
     @InjectMocks
     private com.example.orders.service.OrderService orderService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(orderService, "palpayBaseUrl", "http://localhost:9999");
+    }
 
     @Test
     void createOrderSavesAndPublishesInventoryRequest() {
@@ -84,6 +92,37 @@ class OrderServiceTest {
     void getOrderWhenMissingReturnsNull() {
         when(orderRepository.findById(eq(999L))).thenReturn(Optional.empty());
         assertNull(orderService.getOrder(999L));
+    }
+
+    @Test
+    void getPalpayAuthId_whenFoundWithAuthId_returnsAuthId() {
+        Order order = new Order("SKU-X", "ORD-1", "AUTHORIZED", 49.99, 2, 1L);
+        order.setId(5L);
+        order.setAuthId("AUTH-5");
+
+        when(orderRepository.findById(eq(5L))).thenReturn(Optional.of(order));
+
+        String result = orderService.getPalpayAuthId(5L);
+
+        assertEquals("AUTH-5", result);
+    }
+
+    @Test
+    void getPalpayAuthId_whenOrderMissing_throwsResourceNotFoundException() {
+        when(orderRepository.findById(eq(404L))).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> orderService.getPalpayAuthId(404L));
+    }
+
+    @Test
+    void getPalpayAuthId_whenAuthIdIsNull_throwsResourceNotFoundException() {
+        Order order = new Order("SKU-Y", "ORD-2", "PENDING", 10.00, 1, 2L);
+        order.setId(7L);
+        // authId not set, remains null
+
+        when(orderRepository.findById(eq(7L))).thenReturn(Optional.of(order));
+
+        assertThrows(ResourceNotFoundException.class, () -> orderService.getPalpayAuthId(7L));
     }
 
 }

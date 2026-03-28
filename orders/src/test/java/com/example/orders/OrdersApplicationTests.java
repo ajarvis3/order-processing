@@ -54,7 +54,7 @@ class OrdersApplicationTests {
 
 
         OrderRequest request = new OrderRequest(randomSku, randomUUID, 99.99, orderAmount, palpayOrder);
-        OrderResponse response = new OrderResponse(randomSku, randomId, randomUUID, "PENDING", 99.99, orderAmount);
+        OrderResponse response = new OrderResponse(randomSku, randomId, randomUUID, "PENDING", 99.99, orderAmount, null);
 
         when(orderService.createOrder(any(OrderRequest.class))).thenReturn(response);
 
@@ -74,7 +74,7 @@ class OrdersApplicationTests {
         String randomSku = generateRandomSku();
         Integer orderAmount = generateRandomOrderAmount();
 
-        OrderResponse response = new OrderResponse(randomSku, randomId, randomUUID, "PENDING", 149.99, orderAmount);
+        OrderResponse response = new OrderResponse(randomSku, randomId, randomUUID, "PENDING", 149.99, orderAmount, null);
 
         when(orderService.getOrder(anyLong())).thenReturn(response);
 
