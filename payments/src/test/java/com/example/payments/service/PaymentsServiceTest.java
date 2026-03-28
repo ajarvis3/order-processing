@@ -2,6 +2,8 @@ package com.example.payments.service;
 
 import com.example.payments.dto.PaymentCaptureResponse;
 import com.example.payments.dto.PaymentVoidResponse;
+import com.example.payments.dto.PalpayAuthDto;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +14,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.Constructor;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,6 +26,9 @@ class PaymentsServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private KafkaTemplate<String, String> kafkaTemplate;
+
     @InjectMocks
     private PaymentsService paymentsService;
 
@@ -33,6 +37,7 @@ class PaymentsServiceTest {
         ReflectionTestUtils.setField(paymentsService, "restTemplate", restTemplate);
         ReflectionTestUtils.setField(paymentsService, "palpayBaseUrl", "http://palpay");
         ReflectionTestUtils.setField(paymentsService, "ordersBaseUrl", "http://orders");
+        ReflectionTestUtils.setField(paymentsService, "kafkaTemplate", kafkaTemplate);
     }
 
     // ── callPalpayCapture ─────────────────────────────────────────────────────────
@@ -146,6 +151,7 @@ class PaymentsServiceTest {
 
         verify(spy).callPalpayCapture("AUTH-1");
         verify(spy, never()).callPalpayVoid(any());
+        verify(kafkaTemplate).send(eq("ready-for-shipping"), eq("1"));
     }
 
     @Test
@@ -197,17 +203,7 @@ class PaymentsServiceTest {
      * Reflectively instantiate the private {@code PalpayAuthDto} record inside
      * {@link PaymentsService} so we can stub {@code RestTemplate.getForObject}.
      */
-    private static Object buildPalpayAuthDto(String authId) throws Exception {
-        Class<?> authDtoClass = null;
-        for (Class<?> inner : PaymentsService.class.getDeclaredClasses()) {
-            if (inner.getSimpleName().equals("PalpayAuthDto")) {
-                authDtoClass = inner;
-                break;
-            }
-        }
-        assertNotNull(authDtoClass, "PalpayAuthDto inner class not found in PaymentsService");
-        Constructor<?> ctor = authDtoClass.getDeclaredConstructors()[0];
-        ctor.setAccessible(true);
-        return ctor.newInstance(authId);
+    private static Object buildPalpayAuthDto(String authId) {
+        return new PalpayAuthDto(authId);
     }
 }

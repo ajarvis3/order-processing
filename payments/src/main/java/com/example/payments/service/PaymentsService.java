@@ -4,11 +4,15 @@ import com.example.payments.dto.PaymentCaptureResponse;
 import com.example.payments.dto.PaymentVoidResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import com.example.payments.dto.PalpayAuthDto;
 import java.util.Optional;
 
 @Service
@@ -26,6 +30,11 @@ public class PaymentsService {
 	// Simple RestTemplate for outgoing HTTP calls. For production consider injecting a
 	// RestTemplateBuilder-configured RestTemplate or use WebClient for reactive calls.
 	private final RestTemplate restTemplate = new RestTemplate();
+	
+	@Autowired
+	KafkaTemplate<String, String> kafkaTemplate;
+	
+	private static String KAFKA_TOPIC = "ready-for-shipping";
 
 	/**
 	 * Handle inventory reservation events coming from the inventory service.
@@ -35,6 +44,7 @@ public class PaymentsService {
 	 * @param quantityAvailable remaining quantity available
 	 * @param reserved whether the reservation succeeded
 	 */
+	@Transactional
 	public void handleInventoryReservation(Long orderId, String sku, int quantityAvailable, boolean reserved) {
 		// Fetch the authId once and decide flow based on its presence. If the Orders
 		// service indicates no authId we will attempt to void the payment by order id.
@@ -48,6 +58,7 @@ public class PaymentsService {
 				if (reserved) {
 					log.info("AuthId {} found for orderId={}; capturing payment", authId, orderId);
 					callPalpayCapture(authId);
+					publishPaymentsResultForShipping(orderId.toString());
 				} else {
 					log.info("AuthId {} found for orderId={}; voiding payment by auth", authId, orderId);
 					callPalpayVoid(authId);
@@ -128,7 +139,12 @@ public class PaymentsService {
 		}
 	}
 
-	// Internal DTO to map Orders service response { "authId": "AUTH-123" }
-	private record PalpayAuthDto(String authId) {}
+	private void publishPaymentsResultForShipping(String orderId) {
+		try {
+			kafkaTemplate.send(KAFKA_TOPIC, orderId);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to publish payments completion result to Kafka", e);
+		}
+	}
 }
 
