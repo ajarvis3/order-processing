@@ -8,5 +8,6 @@ public record OrderResponse(
     String orderNumber,
     String status,
     Double totalAmount,
-    Integer orderQuantity
+    Integer orderQuantity,
+    String authId
 ) {}

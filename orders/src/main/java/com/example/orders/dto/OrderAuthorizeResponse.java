@@ -1,4 +1,4 @@
-package com.example.palpay.dto;
+package com.example.orders.dto;
 
 public record OrderAuthorizeResponse(
         Long orderId,

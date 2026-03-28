@@ -17,6 +17,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
@@ -80,9 +81,9 @@ services:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/orders_db
-      SPRING_DATASOURCE_USERNAME: orders_user
-      SPRING_DATASOURCE_PASSWORD: orders_password
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_db
+      SPRING_DATASOURCE_USERNAME: inventory_user
+      SPRING_DATASOURCE_PASSWORD: inventory_password
     ports:
       - "8082:8080"
 
@@ -99,9 +100,9 @@ services:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/orders_db
-      SPRING_DATASOURCE_USERNAME: orders_user
-      SPRING_DATASOURCE_PASSWORD: orders_password
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/payments_db
+      SPRING_DATASOURCE_USERNAME: payments_user
+      SPRING_DATASOURCE_PASSWORD: payments_password
     ports:
       - "8083:8080"
 
@@ -118,8 +119,32 @@ services:
         condition: service_healthy
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/orders_db
-      SPRING_DATASOURCE_USERNAME: orders_user
-      SPRING_DATASOURCE_PASSWORD: orders_password
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shipping_db
+      SPRING_DATASOURCE_USERNAME: shipping_user
+      SPRING_DATASOURCE_PASSWORD: shipping_password
     ports:
       - "8084:8080"
+
+  # -------------------------
+  # Palpay (payment provider simulator)
+  # -------------------------
+  palpay-service:
+    image: palpay-service:latest
+    container_name: palpay-service
+    depends_on:
+      kafka:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/palpay_db
+      SPRING_DATASOURCE_USERNAME: palpay_user
+      SPRING_DATASOURCE_PASSWORD: palpay_password
+    ports:
+      - "8085:8080"
+
+volumes:
+  mysql_data:
+    driver: local
+

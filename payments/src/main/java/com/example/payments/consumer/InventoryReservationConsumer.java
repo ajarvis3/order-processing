@@ -30,7 +30,7 @@ public class InventoryReservationConsumer {
         log.info("Received inventory reservation event for orderId={} sku={} qty={} reserved={}", event.orderId(), event.sku(), event.quantityAvailable(), event.reserved());
 
         // Delegate to the payments service for any action (e.g., capture/void decisions)
-        paymentsService.handleInventoryReservation(event.sku(), event.quantityAvailable(), event.reserved());
+        paymentsService.handleInventoryReservation(event.orderId(), event.sku(), event.quantityAvailable(), event.reserved());
     }
 }
 

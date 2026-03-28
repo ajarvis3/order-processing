@@ -15,6 +15,7 @@ public class Order {
     private Double totalAmount;
     private Integer orderQuantity;
     private Long palpayOrderId;
+    private String authId;
     
     public Order() {}
     
@@ -48,4 +49,7 @@ public class Order {
 
     public Long getPalpayOrderId() { return palpayOrderId; }
     public void setPalpayOrderId(Long palpayOrderId) { this.palpayOrderId = palpayOrderId; }
+
+    public String getAuthId() { return authId; }
+    public void setAuthId(String authId) { this.authId = authId; }
 }

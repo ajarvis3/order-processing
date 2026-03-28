@@ -8,8 +8,8 @@ There will be several microservices for the "order-processing" and I've added so
 The services are as follows:
 - inventory
 - order
-- payment (incomplete)
-- paypal
+- payment (in progress)
+- palpay
 - shipping (not started)
 
 The docker compose will bring up these services as well as Kafka and a SQL database. I intend to add keycloak in the future as well.

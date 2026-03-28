@@ -22,6 +22,7 @@ public class InventoryService {
 
     @Transactional
     public void reserve(Long orderId, String sku, int qty)  {
+        // TODO update this to also void the payment
         InventoryItem item = orderRepository.findBySku(sku)
                 .orElseThrow(() -> new InventoryNotFoundException(sku));
         if (item.getQuantityAvailable() >= qty) {
