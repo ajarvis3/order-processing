@@ -32,7 +32,7 @@ public class PaymentsService {
 	private final RestTemplate restTemplate = new RestTemplate();
 	
 	@Autowired
-	KafkaTemplate<String, String> kafkaTemplate;
+	KafkaTemplate<String, Long> kafkaTemplate;
 	
 	private static String KAFKA_TOPIC = "ready-for-shipping";
 
@@ -58,7 +58,7 @@ public class PaymentsService {
 				if (reserved) {
 					log.info("AuthId {} found for orderId={}; capturing payment", authId, orderId);
 					callPalpayCapture(authId);
-					publishPaymentsResultForShipping(orderId.toString());
+					publishPaymentsResultForShipping(orderId);
 				} else {
 					log.info("AuthId {} found for orderId={}; voiding payment by auth", authId, orderId);
 					callPalpayVoid(authId);
@@ -139,7 +139,7 @@ public class PaymentsService {
 		}
 	}
 
-	private void publishPaymentsResultForShipping(String orderId) {
+	private void publishPaymentsResultForShipping(Long orderId) {
 		try {
 			kafkaTemplate.send(KAFKA_TOPIC, orderId);
 		} catch (Exception e) {

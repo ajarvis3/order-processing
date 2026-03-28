@@ -1,6 +1,7 @@
 package com.example.orders.service;
 
 import com.example.orders.dto.InventoryRequest;
+import com.example.orders.dto.OrderAuthorizeResponse;
 import com.example.orders.dto.OrderRequest;
 import com.example.orders.dto.OrderResponse;
 import com.example.orders.model.Order;
@@ -14,14 +15,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import com.example.orders.exception.ResourceNotFoundException;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +34,9 @@ class OrderServiceTest {
 
     @Mock
     private KafkaTemplate<String, InventoryRequest> kafkaTemplate;
+
+    @Mock
+    private RestTemplate restTemplate;
 
     @InjectMocks
     private com.example.orders.service.OrderService orderService;
@@ -95,7 +100,7 @@ class OrderServiceTest {
     }
 
     @Test
-    void getPalpayAuthId_whenFoundWithAuthId_returnsAuthId() {
+    void getPalpayAuthIdWhenFoundWithAuthId_returnsAuthId() {
         Order order = new Order("SKU-X", "ORD-1", "AUTHORIZED", 49.99, 2, 1L);
         order.setId(5L);
         order.setAuthId("AUTH-5");
@@ -108,14 +113,14 @@ class OrderServiceTest {
     }
 
     @Test
-    void getPalpayAuthId_whenOrderMissing_throwsResourceNotFoundException() {
+    void getPalpayAuthIdWhenOrderMissing_throwsResourceNotFoundException() {
         when(orderRepository.findById(eq(404L))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> orderService.getPalpayAuthId(404L));
     }
 
     @Test
-    void getPalpayAuthId_whenAuthIdIsNull_throwsResourceNotFoundException() {
+    void getPalpayAuthIdWhenAuthIdIsNull_throwsResourceNotFoundException() {
         Order order = new Order("SKU-Y", "ORD-2", "PENDING", 10.00, 1, 2L);
         order.setId(7L);
         // authId not set, remains null
@@ -123,6 +128,96 @@ class OrderServiceTest {
         when(orderRepository.findById(eq(7L))).thenReturn(Optional.of(order));
 
         assertThrows(ResourceNotFoundException.class, () -> orderService.getPalpayAuthId(7L));
+    }
+
+    // ── updateOrderStatusToShipped ────────────────────────────────────────────────
+
+    @Test
+    void updateOrderStatusToShippedWhenOrderExists_setsStatusToShipped() {
+        Order order = new Order("SKU-Z", "ORD-3", "AUTHORIZED", 20.00, 1, 3L);
+        order.setId(8L);
+        when(orderRepository.findById(eq(8L))).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderService.updateOrderStatusToShipped(8L);
+
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(captor.capture());
+        assertEquals("SHIPPED", captor.getValue().getStatus());
+    }
+
+    @Test
+    void updateOrderStatusToShippedWhenOrderNotFound_doesNotSave() {
+        when(orderRepository.findById(eq(404L))).thenReturn(Optional.empty());
+
+        orderService.updateOrderStatusToShipped(404L);
+
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    // ── createOrder — Palpay authorization paths ──────────────────────────────────
+
+    @Test
+    void createOrderWhenPalpayReturnsAuthId_setsAuthIdAndAuthorizedStatus() {
+        OrderRequest req = new OrderRequest("SKU-P", "ORD-P1", 50.00, 1, 5L);
+        OrderAuthorizeResponse authResp = new OrderAuthorizeResponse(5L, "AUTH-XYZ", "AUTHORIZED");
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(200L);
+            return o;
+        });
+        when(restTemplate.postForObject(anyString(), isNull(), eq(OrderAuthorizeResponse.class), eq(5L)))
+                .thenReturn(authResp);
+
+        OrderResponse resp = orderService.createOrder(req);
+
+        assertNotNull(resp);
+        assertEquals("AUTHORIZED", resp.status());
+        assertEquals("AUTH-XYZ", resp.authId());
+        // save is called twice: initial save + after auth
+        verify(orderRepository, times(2)).save(any(Order.class));
+    }
+
+    @Test
+    void createOrderWhenPalpayReturnsNullResponse_leavesOrderPending() {
+        OrderRequest req = new OrderRequest("SKU-Q", "ORD-Q1", 30.00, 2, 6L);
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(201L);
+            return o;
+        });
+        when(restTemplate.postForObject(anyString(), isNull(), eq(OrderAuthorizeResponse.class), eq(6L)))
+                .thenReturn(null);
+
+        OrderResponse resp = orderService.createOrder(req);
+
+        assertNotNull(resp);
+        assertEquals("PENDING", resp.status());
+        assertNull(resp.authId());
+        // only the initial save (no second save since auth not set)
+        verify(orderRepository, times(1)).save(any(Order.class));
+    }
+
+    @Test
+    void createOrderWhenPalpayThrowsRestClientException_stillSavesAndPublishes() {
+        OrderRequest req = new OrderRequest("SKU-R", "ORD-R1", 70.00, 1, 7L);
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(202L);
+            return o;
+        });
+        when(restTemplate.postForObject(anyString(), isNull(), eq(OrderAuthorizeResponse.class), eq(7L)))
+                .thenThrow(new RestClientException("timeout"));
+
+        OrderResponse resp = orderService.createOrder(req);
+
+        // Order is saved and Kafka published despite Palpay failure
+        assertNotNull(resp);
+        assertEquals("PENDING", resp.status());
+        verify(kafkaTemplate).send(eq("orders"), eq("ORD-R1"), any(InventoryRequest.class));
     }
 
 }

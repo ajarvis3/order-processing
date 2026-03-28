@@ -27,17 +27,16 @@ class PaymentsServiceTest {
     private RestTemplate restTemplate;
 
     @Mock
-    private KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaTemplate<String, Long> kafkaTemplate;
 
     @InjectMocks
     private PaymentsService paymentsService;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(paymentsService, "restTemplate", restTemplate);
         ReflectionTestUtils.setField(paymentsService, "palpayBaseUrl", "http://palpay");
         ReflectionTestUtils.setField(paymentsService, "ordersBaseUrl", "http://orders");
-        ReflectionTestUtils.setField(paymentsService, "kafkaTemplate", kafkaTemplate);
+        ReflectionTestUtils.setField(paymentsService, "restTemplate", restTemplate);
     }
 
     // ── callPalpayCapture ─────────────────────────────────────────────────────────
@@ -151,7 +150,7 @@ class PaymentsServiceTest {
 
         verify(spy).callPalpayCapture("AUTH-1");
         verify(spy, never()).callPalpayVoid(any());
-        verify(kafkaTemplate).send(eq("ready-for-shipping"), eq("1"));
+        verify(kafkaTemplate).send(eq("ready-for-shipping"), eq(1L));
     }
 
     @Test

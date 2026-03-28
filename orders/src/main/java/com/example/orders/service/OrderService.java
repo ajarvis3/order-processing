@@ -28,7 +28,7 @@ public class OrderService {
     @Value("${palpay.base-url:http://localhost:8085}")
     private String palpayBaseUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private RestTemplate restTemplate = new RestTemplate();
     
     public OrderResponse createOrder(OrderRequest request) {
         Order order = new Order(request.sku(), request.orderNumber(), "PENDING", request.totalAmount(), request.orderQuantity(), request.palpayOrder());
@@ -73,5 +73,12 @@ public class OrderService {
     
     private OrderResponse mapToResponse(Order order) {
         return new OrderResponse(order.getSku(), order.getId(), order.getOrderNumber(), order.getStatus(), order.getTotalAmount(), order.getOrderQuantity(), order.getAuthId());
+    }
+
+    public void updateOrderStatusToShipped(Long orderId) {
+        orderRepository.findById(orderId).ifPresent(order -> {
+            order.setStatus("SHIPPED");
+            orderRepository.save(order);
+        });
     }
 }
