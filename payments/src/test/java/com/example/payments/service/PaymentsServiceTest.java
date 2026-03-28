@@ -93,35 +93,6 @@ class PaymentsServiceTest {
         assertThrows(RestClientException.class, () -> paymentsService.callPalpayVoid("AUTH-2"));
     }
 
-    // ── callPalpayVoidByOrderId ───────────────────────────────────────────────────
-
-    @Test
-    void callPalpayVoidByOrderIdReturnsResponseOnSuccess() {
-        PaymentVoidResponse expected = new PaymentVoidResponse(3L, "VOIDED");
-        when(restTemplate.postForObject(anyString(), isNull(), eq(PaymentVoidResponse.class), eq(3L)))
-                .thenReturn(expected);
-
-        PaymentVoidResponse result = paymentsService.callPalpayVoidByOrderId(3L);
-
-        assertEquals(expected, result);
-    }
-
-    @Test
-    void callPalpayVoidByOrderIdThrowsWhenResponseIsNull() {
-        when(restTemplate.postForObject(anyString(), isNull(), eq(PaymentVoidResponse.class), eq(3L)))
-                .thenReturn(null);
-
-        assertThrows(RestClientException.class, () -> paymentsService.callPalpayVoidByOrderId(3L));
-    }
-
-    @Test
-    void callPalpayVoidByOrderIdRethrowsRestClientException() {
-        when(restTemplate.postForObject(anyString(), isNull(), eq(PaymentVoidResponse.class), eq(3L)))
-                .thenThrow(new RestClientException("error"));
-
-        assertThrows(RestClientException.class, () -> paymentsService.callPalpayVoidByOrderId(3L));
-    }
-
     // ── getPalpayAuthIdForOrder ───────────────────────────────────────────────────
 
     @Test
@@ -175,7 +146,6 @@ class PaymentsServiceTest {
 
         verify(spy).callPalpayCapture("AUTH-1");
         verify(spy, never()).callPalpayVoid(any());
-        verify(spy, never()).callPalpayVoidByOrderId(any());
     }
 
     @Test
@@ -188,32 +158,17 @@ class PaymentsServiceTest {
 
         verify(spy).callPalpayVoid("AUTH-1");
         verify(spy, never()).callPalpayCapture(any());
-        verify(spy, never()).callPalpayVoidByOrderId(any());
     }
 
     @Test
     void handleInventoryReservationVoidsByOrderIdWhenNoAuthPresent() {
         PaymentsService spy = spy(paymentsService);
         doReturn(Optional.empty()).when(spy).getPalpayAuthIdForOrder(1L);
-        doReturn(new PaymentVoidResponse(1L, "VOIDED")).when(spy).callPalpayVoidByOrderId(1L);
 
         spy.handleInventoryReservation(1L, "SKU-A", 0, true);
 
-        verify(spy).callPalpayVoidByOrderId(1L);
         verify(spy, never()).callPalpayCapture(any());
         verify(spy, never()).callPalpayVoid(any());
-    }
-
-    @Test
-    void handleInventoryReservationRethrowsAfterVoidByOrderIdWhenAuthFetchFails() {
-        PaymentsService spy = spy(paymentsService);
-        doThrow(new RestClientException("orders down")).when(spy).getPalpayAuthIdForOrder(1L);
-        doReturn(new PaymentVoidResponse(1L, "VOIDED")).when(spy).callPalpayVoidByOrderId(1L);
-
-        assertThrows(RestClientException.class,
-                () -> spy.handleInventoryReservation(1L, "SKU-A", 5, true));
-
-        verify(spy).callPalpayVoidByOrderId(1L);
     }
 
     @Test

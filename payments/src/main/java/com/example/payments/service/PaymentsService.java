@@ -40,25 +40,11 @@ public class PaymentsService {
 		// service indicates no authId we will attempt to void the payment by order id.
 		log.info("Inventory {} for sku='{}' qty={}. Handling payment for orderId={}",
 				reserved ? "reserved" : "NOT reserved", sku, quantityAvailable, orderId);
-
-		Optional<String> optAuth;
+		Optional<String> optAuth = null;
 		try {
 			optAuth = getPalpayAuthIdForOrder(orderId);
-		} catch (RuntimeException e) {
-			// If we can't fetch the auth id, attempt a best-effort void-by-order and rethrow
-			log.error("Error fetching authId for orderId={}; attempting void-by-order as fallback", orderId, e);
-			try {
-				callPalpayVoidByOrderId(orderId);
-			} catch (Exception voidEx) {
-				log.error("Failed to void payment by order id={} after auth lookup failure", orderId, voidEx);
-			}
-			throw e;
-		}
-
-		// If auth is present: capture when reserved, otherwise void by auth.
-		if (optAuth.isPresent()) {
-			String authId = optAuth.get();
-			try {
+			if (optAuth.isPresent()) {
+				String authId = optAuth.get();
 				if (reserved) {
 					log.info("AuthId {} found for orderId={}; capturing payment", authId, orderId);
 					callPalpayCapture(authId);
@@ -66,21 +52,17 @@ public class PaymentsService {
 					log.info("AuthId {} found for orderId={}; voiding payment by auth", authId, orderId);
 					callPalpayVoid(authId);
 				}
-			} catch (RuntimeException e) {
-				log.error("Error performing payment action for orderId={} authId={}", orderId, authId, e);
-				throw e;
 			}
-		} else {
-			// No auth id — always void by order id to ensure payment is cancelled.
-			log.info("No authId found for orderId={}; voiding payment by order id", orderId);
+		} catch (RuntimeException e) {
+			// If we can't fetch the auth id, attempt a best-effort void-by-order and rethrow
+			log.error("Error fetching authId for orderId={}; attempting void-by-order as fallback", orderId, e);
 			try {
-				callPalpayVoidByOrderId(orderId);
-			} catch (RuntimeException e) {
-				log.error("Failed to void payment by orderId={}", orderId, e);
-				throw e;
+				if (optAuth != null && optAuth.isPresent()) callPalpayVoid(optAuth.get());
+			} catch (Exception voidEx) {
+				log.error("Failed to void payment by order id={} after auth lookup failure", orderId, voidEx);
 			}
+			throw e;
 		}
-		// TODO: notify order system or further compensation if needed
 	}
 
 	/**
@@ -123,25 +105,6 @@ public class PaymentsService {
 			return resp;
 		} catch (RestClientException e) {
 			log.error("Failed to call Palpay void for authId={}", authId, e);
-			throw e;
-		}
-	}
-
-	/**
-	 * Attempt to void payment using the order id when an authId is not available.
-	 * This calls a Palpay endpoint that voids by order id. If your Palpay API differs,
-	 * adjust the URL accordingly.
-	 */
-	public PaymentVoidResponse callPalpayVoidByOrderId(Long orderId) {
-		String url = palpayBaseUrl + "/palpay/payments/order/{orderId}/void";
-		try {
-			PaymentVoidResponse resp = restTemplate.postForObject(url, null, PaymentVoidResponse.class, orderId);
-			if (resp == null) {
-				throw new RestClientException("Empty response from Palpay void-by-order for orderId=" + orderId);
-			}
-			return resp;
-		} catch (RestClientException e) {
-			log.error("Failed to call Palpay void-by-order for orderId={}", orderId, e);
 			throw e;
 		}
 	}
