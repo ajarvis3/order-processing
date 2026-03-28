@@ -1,6 +1,7 @@
 package com.example.inventory.service;
 
 import com.example.inventory.dto.ReservationEvent;
+import com.example.inventory.exceptions.InventoryNotFoundException;
 import com.example.inventory.model.InventoryItem;
 import com.example.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.Test;
@@ -50,21 +51,11 @@ class InventoryServiceTest {
         ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
         verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("SKU-1"), eventCaptor.capture());
 
-        Object evt = eventCaptor.getValue();
-        try {
-            Class<?> c = evt.getClass();
-            // orderId is now the first field
-            Object orderId = c.getField("orderId").get(evt);
-            Object reserved = c.getField("reserved").get(evt);
-            Object qty = c.getField("quantityAvailable").get(evt);
-            Object sku = c.getField("sku").get(evt);
-            assertNull(orderId);
-            assertEquals("SKU-1", sku);
-            assertEquals(7, ((Number) qty).intValue());
-            assertEquals(true, reserved);
-        } catch (ReflectiveOperationException ex) {
-            fail("Failed to inspect reservation event: " + ex.getMessage());
-        }
+        ReservationEvent evt = eventCaptor.getValue();
+        assertEquals(100L, evt.orderId());
+        assertEquals("SKU-1", evt.sku());
+        assertEquals(7, evt.quantityAvailable());
+        assertTrue(evt.reserved());
     }
 
     @Test
@@ -84,43 +75,22 @@ class InventoryServiceTest {
         ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
         verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("SKU-2"), eventCaptor.capture());
 
-        Object evt = eventCaptor.getValue();
-        try {
-            Class<?> c = evt.getClass();
-            Object orderId = c.getField("orderId").get(evt);
-            Object reserved = c.getField("reserved").get(evt);
-            Object qty = c.getField("quantityAvailable").get(evt);
-            assertNull(orderId);
-            assertEquals("SKU-2", c.getField("sku").get(evt));
-            assertEquals(1, ((Number) qty).intValue());
-            assertEquals(false, reserved);
-        } catch (ReflectiveOperationException ex) {
-            fail("Failed to inspect reservation event: " + ex.getMessage());
-        }
+        ReservationEvent evt = eventCaptor.getValue();
+        assertEquals(101L, evt.orderId());
+        assertEquals("SKU-2", evt.sku());
+        assertEquals(1, evt.quantityAvailable());
+        assertFalse(evt.reserved());
     }
 
     @Test
-    void reserveWhenNotFoundPublishesZeroAndFalse() {
+    void reserveWhenNotFoundThrowsInventoryNotFoundException() {
         when(inventoryRepository.findBySku(eq("MISSING"))).thenReturn(Optional.empty());
 
-        inventoryService.reserve(102L, "MISSING", 2);
+        assertThrows(InventoryNotFoundException.class, () -> inventoryService.reserve(102L, "MISSING", 2));
 
-        // should not save
+        // should not save or publish when item not found
         verify(inventoryRepository, never()).save(any());
-
-        ArgumentCaptor<ReservationEvent> eventCaptor = ArgumentCaptor.forClass(ReservationEvent.class);
-        verify(kafkaTemplate).send(eq("inventory-reservation-result"), eq("MISSING"), eventCaptor.capture());
-
-        Object evt = eventCaptor.getValue();
-        try {
-            Class<?> c = evt.getClass();
-            assertNull(c.getField("orderId").get(evt));
-            assertEquals("MISSING", c.getField("sku").get(evt));
-            assertEquals(0, ((Number) c.getField("quantityAvailable").get(evt)).intValue());
-            assertEquals(false, c.getField("reserved").get(evt));
-        } catch (ReflectiveOperationException ex) {
-            fail("Failed to inspect reservation event: " + ex.getMessage());
-        }
+        verify(kafkaTemplate, never()).send(any(), any(), any());
     }
 }
 
